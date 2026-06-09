@@ -8,9 +8,9 @@ def determine_status(
     average_difference: float,
     alert_level: float,
 ) -> str:
-    if difference_percent < alert_level:
-        return "جذاب"
     if difference_percent <= average_difference:
+        return "جذاب"
+    if difference_percent <= average_difference + 0.25:
         return "عادی"
     return "غیرجذاب"
 

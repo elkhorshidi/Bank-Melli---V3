@@ -17,7 +17,7 @@ def main() -> None:
     df = add_calculations(df, config.ALERT_LEVEL, config.RECENT_DAYS)
     df = add_status_column(df, config.ALERT_LEVEL, config.RECENT_DAYS)
 
-    render_dashboard(df, config.RECENT_DAYS)
+    render_dashboard(df, config.RECENT_DAYS, config.ALERT_LEVEL)
 
 
 if __name__ == "__main__":
