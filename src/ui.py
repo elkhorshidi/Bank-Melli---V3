@@ -2,6 +2,7 @@ import plotly.express as px
 import streamlit as st
 
 from src.calculator import get_latest_record, get_recent_records
+from src.status import get_recommendation_text
 
 
 WEEKDAY_LABELS = {
@@ -68,6 +69,24 @@ def get_status_background(status: str) -> str:
         "غیرجذاب": "#fef2f2",
     }
     return colors.get(status, "#ffffff")
+
+
+def get_tone_color(tone: str) -> str:
+    colors = {
+        "positive": "#15803d",
+        "neutral": "#1d4ed8",
+        "negative": "#b91c1c",
+    }
+    return colors.get(tone, "#111827")
+
+
+def get_tone_background(tone: str) -> str:
+    colors = {
+        "positive": "#f0fdf4",
+        "neutral": "#eff6ff",
+        "negative": "#fef2f2",
+    }
+    return colors.get(tone, "#ffffff")
 
 
 def prepare_display_table(df):
@@ -175,6 +194,29 @@ def render_metric_section(latest, alert_level: float) -> None:
     )
 
 
+def render_recommendation_box(recommendation: dict, latest_record) -> None:
+    tone = recommendation["tone"]
+    detail_items = [
+        ("اختلاف امروز", format_percent(latest_record["difference_percent"])),
+        ("میانگین اخیر", format_percent(latest_record["average_difference"])),
+        ("سطح هشدار", format_percent(recommendation["alert_level"])),
+    ]
+    details_html = "".join(
+        f'<span><strong>{label}:</strong> {value}</span>' for label, value in detail_items
+    )
+    box_html = "".join(
+        [
+            f'<div class="recommendation-box" style="background: {get_tone_background(tone)};">',
+            f'<div class="recommendation-title">{recommendation["title"]}</div>',
+            f'<div class="recommendation-headline" style="color: {get_tone_color(tone)};">{recommendation["headline"]}</div>',
+            f'<div class="recommendation-message">{recommendation["message"]}</div>',
+            f'<div class="recommendation-details">{details_html}</div>',
+            "</div>",
+        ]
+    )
+    st.markdown(box_html, unsafe_allow_html=True)
+
+
 def apply_base_styles() -> None:
     st.markdown(
         """
@@ -257,6 +299,40 @@ def apply_base_styles() -> None:
         }
         .metric-value-small {
             font-size: 1.35rem;
+        }
+        .recommendation-box {
+            background: #ffffff;
+            border: 1px solid #e5e7eb;
+            border-radius: 10px;
+            margin: 0.9rem 0 1rem;
+            padding: 0.95rem 1rem;
+            text-align: right;
+        }
+        .recommendation-title {
+            color: #64748b;
+            font-size: 0.82rem;
+            margin-bottom: 0.35rem;
+        }
+        .recommendation-headline {
+            font-size: 1.45rem;
+            font-weight: 700;
+            line-height: 1.35;
+            margin-bottom: 0.35rem;
+        }
+        .recommendation-message {
+            color: #334155;
+            font-size: 0.9rem;
+            line-height: 1.8;
+            margin-bottom: 0.65rem;
+        }
+        .recommendation-details {
+            border-top: 1px solid #e5e7eb;
+            color: #475569;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.55rem 1.2rem;
+            padding-top: 0.6rem;
+            font-size: 0.82rem;
         }
         .section-title {
             color: #111827;
@@ -344,6 +420,13 @@ def render_dashboard(df, recent_days: int, alert_level: float) -> None:
     apply_base_styles()
     render_header(latest_date)
     render_metric_section(latest, alert_level)
+    recommendation = get_recommendation_text(
+        latest["status"],
+        latest["difference_percent"],
+        latest["average_difference"],
+        alert_level,
+    )
+    render_recommendation_box(recommendation, latest)
 
     display_table = prepare_display_table(recent_records)
     st.markdown('<div class="section-title">۷ رکورد اخیر</div>', unsafe_allow_html=True)
