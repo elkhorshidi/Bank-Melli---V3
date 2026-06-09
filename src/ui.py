@@ -131,13 +131,47 @@ def render_metric_card(
     small: bool = False,
 ) -> str:
     value_class = "metric-value metric-value-small" if small else "metric-value"
-    return (
-        f"""
-        <div class="metric-card" style="background: {background};">
-            <div class="metric-label">{label}</div>
-            <div class="{value_class}" style="color: {color};">{value}</div>
-        </div>
-        """
+    return "".join(
+        [
+            f'<div class="metric-card" style="background: {background};">',
+            f'<div class="metric-label">{label}</div>',
+            f'<div class="{value_class}" style="color: {color};">{value}</div>',
+            "</div>",
+        ]
+    )
+
+
+def build_metric_grid(cards: list[str], secondary: bool = False) -> str:
+    grid_class = "metric-grid secondary" if secondary else "metric-grid"
+    cards_html = "".join(cards)
+    return f'<div class="{grid_class}">{cards_html}</div>'
+
+
+def render_metric_section(latest, alert_level: float) -> None:
+    status = latest["status"]
+    primary_cards = [
+        render_metric_card("نرخ امروز بانک ملی", format_rate(latest["bank_melli_rate"])),
+        render_metric_card("نرخ امروز بازار آزاد", format_rate(latest["market_rate"])),
+        render_metric_card("اختلاف امروز", format_percent(latest["difference_percent"])),
+        render_metric_card(
+            "وضعیت امروز",
+            status,
+            color=get_status_color(status),
+            background=get_status_background(status),
+        ),
+    ]
+    secondary_cards = [
+        render_metric_card(
+            "میانگین اختلاف ۷ رکورد اخیر",
+            format_percent(latest["average_difference"]),
+            small=True,
+        ),
+        render_metric_card("سطح هشدار", format_percent(alert_level), small=True),
+    ]
+
+    st.markdown(
+        build_metric_grid(primary_cards) + build_metric_grid(secondary_cards, secondary=True),
+        unsafe_allow_html=True,
     )
 
 
@@ -150,7 +184,8 @@ def apply_base_styles() -> None:
             text-align: right;
             background: #f8fafc;
         }
-        [data-testid="stAppViewContainer"] .main .block-container {
+        [data-testid="stAppViewContainer"] .main .block-container,
+        [data-testid="stMainBlockContainer"] {
             max-width: 1050px;
             margin: 0 auto;
             padding-top: 1.4rem;
@@ -193,8 +228,9 @@ def apply_base_styles() -> None:
             display: grid;
             gap: 0.65rem;
             margin-bottom: 0.75rem;
+            width: 100%;
         }
-        .metric-grid.primary {
+        .metric-grid {
             grid-template-columns: repeat(4, minmax(0, 1fr));
         }
         .metric-grid.secondary {
@@ -255,12 +291,12 @@ def apply_base_styles() -> None:
             font-size: 0.78rem;
         }
         @media (max-width: 900px) {
-            .metric-grid.primary {
+            .metric-grid {
                 grid-template-columns: repeat(2, minmax(0, 1fr));
             }
         }
         @media (max-width: 640px) {
-            .metric-grid.primary,
+            .metric-grid,
             .metric-grid.secondary {
                 grid-template-columns: 1fr;
             }
@@ -307,25 +343,7 @@ def render_dashboard(df, recent_days: int, alert_level: float) -> None:
 
     apply_base_styles()
     render_header(latest_date)
-
-    status = latest["status"]
-    st.markdown(
-        f"""
-        <div class="dashboard-container">
-            <div class="metric-grid primary">
-                {render_metric_card("نرخ امروز بانک ملی", format_rate(latest["bank_melli_rate"]))}
-                {render_metric_card("نرخ امروز بازار آزاد", format_rate(latest["market_rate"]))}
-                {render_metric_card("اختلاف امروز", format_percent(latest["difference_percent"]))}
-                {render_metric_card("وضعیت امروز", status, get_status_color(status), get_status_background(status))}
-            </div>
-            <div class="metric-grid secondary">
-                {render_metric_card("میانگین اختلاف ۷ رکورد اخیر", format_percent(latest["average_difference"]), small=True)}
-                {render_metric_card("سطح هشدار", format_percent(alert_level), small=True)}
-            </div>
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
+    render_metric_section(latest, alert_level)
 
     display_table = prepare_display_table(recent_records)
     st.markdown('<div class="section-title">۷ رکورد اخیر</div>', unsafe_allow_html=True)
@@ -349,10 +367,7 @@ def render_dashboard(df, recent_days: int, alert_level: float) -> None:
     )
     rates_chart.update_layout(legend_title_text="نوع نرخ")
     style_chart(rates_chart)
-    with st.container():
-        st.markdown('<div class="chart-card">', unsafe_allow_html=True)
-        st.plotly_chart(rates_chart, width="stretch")
-        st.markdown('</div>', unsafe_allow_html=True)
+    st.plotly_chart(rates_chart, use_container_width=True)
 
     st.markdown('<div class="section-title">نمودار اختلاف درصدی</div>', unsafe_allow_html=True)
     difference_chart = px.bar(
@@ -374,10 +389,7 @@ def render_dashboard(df, recent_days: int, alert_level: float) -> None:
         annotation_position="top right",
     )
     style_chart(difference_chart)
-    with st.container():
-        st.markdown('<div class="chart-card">', unsafe_allow_html=True)
-        st.plotly_chart(difference_chart, width="stretch")
-        st.markdown('</div>', unsafe_allow_html=True)
+    st.plotly_chart(difference_chart, use_container_width=True)
 
     st.markdown(
         '<div class="footer-note">اطلاعات این گزارش صرفاً جهت اطلاع‌رسانی است و مبنای تصمیم‌گیری نمی‌باشد.</div>',
