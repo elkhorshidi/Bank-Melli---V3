@@ -283,8 +283,17 @@ def apply_base_styles() -> None:
             text-align: right;
         }
         .stTabs [data-baseweb="tab"] {
+            background: #ffffff;
+            border: 1px solid #e5e7eb;
+            border-radius: 10px 10px 0 0;
             font-size: 0.9rem;
             font-weight: 700;
+            height: 2.5rem;
+            padding: 0 1rem;
+        }
+        .stTabs [aria-selected="true"] {
+            border-bottom-color: #ffffff;
+            color: #111827;
         }
         .dashboard-container {
             max-width: 1050px;
@@ -593,10 +602,10 @@ def render_dashboard(df, recent_days: int, alert_level: float) -> None:
     chart_df["date"] = chart_df["date"].apply(format_jalali_date)
 
     apply_base_styles()
-    summary_tab, records_tab = st.tabs(["خلاصه گزارش", "۷ رکورد اخیر"])
+    tab_summary, tab_records = st.tabs(["خلاصه گزارش", "۷ رکورد اخیر"])
 
-    with summary_tab:
+    with tab_summary:
         render_summary_tab(latest, chart_df, alert_level)
 
-    with records_tab:
+    with tab_records:
         render_records_tab(latest, recent_records)
