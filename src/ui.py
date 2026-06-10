@@ -53,6 +53,10 @@ def format_percent(value) -> str:
     return f"{value:.2f}%"
 
 
+def format_percent_ltr(value) -> str:
+    return f'<span dir="ltr">{format_percent(value)}</span>'
+
+
 def get_status_color(status: str) -> str:
     colors = {
         "جذاب": "#15803d",
@@ -71,6 +75,15 @@ def get_status_background(status: str) -> str:
     return colors.get(status, "#ffffff")
 
 
+def get_status_border_color(status: str) -> str:
+    colors = {
+        "جذاب": "#86efac",
+        "عادی": "#93c5fd",
+        "غیرجذاب": "#fca5a5",
+    }
+    return colors.get(status, "#e5e7eb")
+
+
 def get_tone_color(tone: str) -> str:
     colors = {
         "positive": "#15803d",
@@ -87,6 +100,15 @@ def get_tone_background(tone: str) -> str:
         "negative": "#fef2f2",
     }
     return colors.get(tone, "#ffffff")
+
+
+def get_tone_border_color(tone: str) -> str:
+    colors = {
+        "positive": "#86efac",
+        "neutral": "#93c5fd",
+        "negative": "#fca5a5",
+    }
+    return colors.get(tone, "#e5e7eb")
 
 
 def prepare_display_table(df):
@@ -197,16 +219,16 @@ def render_metric_section(latest, alert_level: float) -> None:
 def render_recommendation_box(recommendation: dict, latest_record) -> None:
     tone = recommendation["tone"]
     detail_items = [
-        ("اختلاف امروز", format_percent(latest_record["difference_percent"])),
-        ("میانگین اخیر", format_percent(latest_record["average_difference"])),
-        ("سطح هشدار", format_percent(recommendation["alert_level"])),
+        ("اختلاف امروز", format_percent_ltr(latest_record["difference_percent"])),
+        ("میانگین اخیر", format_percent_ltr(latest_record["average_difference"])),
+        ("سطح هشدار", format_percent_ltr(recommendation["alert_level"])),
     ]
     details_html = "".join(
         f'<span><strong>{label}:</strong> {value}</span>' for label, value in detail_items
     )
     box_html = "".join(
         [
-            f'<div class="recommendation-box" style="background: {get_tone_background(tone)};">',
+            f'<div class="recommendation-box" style="background: {get_tone_background(tone)}; border-color: {get_tone_border_color(tone)};">',
             f'<div class="recommendation-title">{recommendation["title"]}</div>',
             f'<div class="recommendation-headline" style="color: {get_tone_color(tone)};">{recommendation["headline"]}</div>',
             f'<div class="recommendation-message">{recommendation["message"]}</div>',
@@ -245,13 +267,19 @@ def apply_base_styles() -> None:
             background: #ffffff;
             border: 1px solid #e5e7eb;
             border-radius: 12px;
-            padding: 1rem 1.1rem;
+            padding: 1rem 1.1rem 0.95rem;
             margin-bottom: 1rem;
             text-align: right;
         }
+        .report-header-top {
+            align-items: flex-start;
+            display: flex;
+            gap: 0.75rem;
+            justify-content: space-between;
+        }
         .report-header h1 {
             color: #111827;
-            font-size: 1.55rem;
+            font-size: 1.5rem;
             font-weight: 700;
             line-height: 1.45;
             margin: 0 0 0.15rem;
@@ -266,9 +294,19 @@ def apply_base_styles() -> None:
             font-size: 0.85rem;
             margin-top: 0.3rem;
         }
+        .status-pill {
+            border: 1px solid #e5e7eb;
+            border-radius: 999px;
+            flex: 0 0 auto;
+            font-size: 0.82rem;
+            font-weight: 700;
+            line-height: 1;
+            padding: 0.45rem 0.75rem;
+            white-space: nowrap;
+        }
         .metric-grid {
             display: grid;
-            gap: 0.65rem;
+            gap: 0.7rem;
             margin-bottom: 0.75rem;
             width: 100%;
         }
@@ -280,41 +318,41 @@ def apply_base_styles() -> None:
         }
         .metric-card {
             background: #ffffff;
-            border: 1px solid #e5e7eb;
+            border: 1px solid #d8dee8;
             border-radius: 10px;
-            min-height: 92px;
-            padding: 0.85rem 0.9rem;
+            min-height: 98px;
+            padding: 0.9rem 0.95rem;
             text-align: right;
         }
         .metric-label {
             color: #64748b;
             font-size: 0.78rem;
-            margin-bottom: 0.45rem;
+            margin-bottom: 0.55rem;
         }
         .metric-value {
             color: #111827;
-            font-size: 1.6rem;
+            font-size: 1.65rem;
             font-weight: 700;
             line-height: 1.35;
         }
         .metric-value-small {
-            font-size: 1.35rem;
+            font-size: 1.25rem;
         }
         .recommendation-box {
             background: #ffffff;
             border: 1px solid #e5e7eb;
-            border-radius: 10px;
-            margin: 0.9rem 0 1rem;
-            padding: 0.95rem 1rem;
+            border-radius: 12px;
+            margin: 1rem 0 1.05rem;
+            padding: 1.15rem 1.2rem;
             text-align: right;
         }
         .recommendation-title {
             color: #64748b;
-            font-size: 0.82rem;
+            font-size: 0.84rem;
             margin-bottom: 0.35rem;
         }
         .recommendation-headline {
-            font-size: 1.45rem;
+            font-size: 1.85rem;
             font-weight: 700;
             line-height: 1.35;
             margin-bottom: 0.35rem;
@@ -330,7 +368,7 @@ def apply_base_styles() -> None:
             color: #475569;
             display: flex;
             flex-wrap: wrap;
-            gap: 0.55rem 1.2rem;
+            gap: 0.55rem 1.35rem;
             padding-top: 0.6rem;
             font-size: 0.82rem;
         }
@@ -372,6 +410,13 @@ def apply_base_styles() -> None:
             }
         }
         @media (max-width: 640px) {
+            .report-header-top {
+                display: block;
+            }
+            .status-pill {
+                display: inline-block;
+                margin-top: 0.7rem;
+            }
             .metric-grid,
             .metric-grid.secondary {
                 grid-template-columns: 1fr;
@@ -383,14 +428,19 @@ def apply_base_styles() -> None:
     )
 
 
-def render_header(latest_date: str) -> None:
+def render_header(latest_date: str, status: str) -> None:
     st.markdown(
         f"""
         <div class="dashboard-container">
         <div class="report-header">
-            <h1>گزارش روزانه نرخ دلار بانک ملی</h1>
-            <p>گزارش ساده وضعیت نرخ بانک ملی نسبت به نرخ بازار آزاد</p>
-            <p class="today">امروز: {latest_date}</p>
+            <div class="report-header-top">
+                <div>
+                    <h1>گزارش روزانه نرخ دلار بانک ملی</h1>
+                    <p>گزارش ساده وضعیت نرخ بانک ملی نسبت به نرخ بازار آزاد</p>
+                    <p class="today">امروز: {latest_date}</p>
+                </div>
+                <div class="status-pill" style="color: {get_status_color(status)}; background: {get_status_background(status)}; border-color: {get_status_border_color(status)};">{status}</div>
+            </div>
         </div>
         </div>
         """,
@@ -401,13 +451,14 @@ def render_header(latest_date: str) -> None:
 def style_chart(chart) -> None:
     chart.update_layout(
         height=300,
-        margin=dict(l=16, r=16, t=48, b=28),
+        margin=dict(l=16, r=16, t=42, b=26),
         title_x=0.98,
         font=dict(family="Arial", size=12),
         paper_bgcolor="#ffffff",
         plot_bgcolor="#ffffff",
         legend=dict(orientation="h", yanchor="bottom", y=1.01, xanchor="right", x=1),
     )
+    chart.update_xaxes(tickangle=0)
 
 
 def render_dashboard(df, recent_days: int, alert_level: float) -> None:
@@ -418,7 +469,7 @@ def render_dashboard(df, recent_days: int, alert_level: float) -> None:
     latest_date = format_jalali_date(latest["date"])
 
     apply_base_styles()
-    render_header(latest_date)
+    render_header(latest_date, latest["status"])
     render_metric_section(latest, alert_level)
     recommendation = get_recommendation_text(
         latest["status"],
