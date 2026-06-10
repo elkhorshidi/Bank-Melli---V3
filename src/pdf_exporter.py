@@ -71,22 +71,6 @@ TONE_COLORS = {
 }
 
 
-def fa(text) -> str:
-    """
-    Prepare Persian/Arabic text for ReportLab rendering:
-    - convert input to string
-    - reshape Persian/Arabic characters
-    - apply bidi display ordering
-    - return the shaped text
-    """
-    if text is None:
-        return ""
-
-    text = str(text)
-    reshaped_text = arabic_reshaper.reshape(text)
-    return get_display(reshaped_text)
-
-
 def clean_persian_text(text) -> str:
     if text is None:
         return ""
@@ -114,11 +98,28 @@ def clean_persian_text(text) -> str:
         "نمی باشد": "نمی‌باشد",
         "سهشنبه": "سه‌شنبه",
         "سه شنبه": "سه‌شنبه",
+        "چهارشنبه": "چهارشنبه",
+        "یکشنبه": "یکشنبه",
+        "دوشنبه": "دوشنبه",
+        "پنجشنبه": "پنجشنبه",
     }
     text = str(text)
     for source, replacement in replacements.items():
         text = text.replace(source, replacement)
     return text
+
+
+def fa(text) -> str:
+    """
+    Prepare Persian/Arabic text for ReportLab rendering:
+    - clean Persian text before shaping
+    - reshape Persian/Arabic characters
+    - apply bidi display ordering
+    - return the shaped text
+    """
+    text = clean_persian_text(text)
+    reshaped_text = arabic_reshaper.reshape(text)
+    return get_display(reshaped_text)
 
 
 def register_pdf_fonts() -> tuple[str, str]:
@@ -561,6 +562,12 @@ def generate_pdf_report(
     alert_level,
 ) -> bytes:
     font_name, bold_font_name = register_pdf_fonts()
+    print("PDF title raw:", clean_persian_text("شاخصهای کلیدی"))
+    print(
+        "PDF footer raw:",
+        clean_persian_text("اطلاعات این گزارش صرفا جهت اطلاعرسانی است و مبنای تصمیمگیری نمیباشد."),
+    )
+    print("PDF recommendation raw:", clean_persian_text(recommendation.get("message", "")))
     styles = _build_styles(font_name, bold_font_name)
     buffer = BytesIO()
     document = SimpleDocTemplate(
