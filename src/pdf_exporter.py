@@ -58,6 +58,12 @@ STATUS_COLORS = {
     },
 }
 
+PDF_RECOMMENDATION_MESSAGES = {
+    "جذاب": "اختلاف امروز پایین‌تر یا نزدیک به میانگین اخیر است؛ بنابراین فروش ارز به بانک ملی از نظر نرخ، نسبتاً جذاب ارزیابی می‌شود.",
+    "عادی": "اختلاف امروز در محدوده قابل‌قبول قرار دارد، اما مزیت نرخ بانک ملی نسبت به روزهای بهتر اخیر چندان برجسته نیست.",
+    "غیرجذاب": "امروز زمان مناسبی برای فروش ارز به بانک ملی نیست؛ اختلاف نرخ بانک ملی با بازار آزاد بالاتر از میانگین اخیر قرار دارد.",
+}
+
 TONE_COLORS = {
     "positive": STATUS_COLORS["جذاب"],
     "neutral": STATUS_COLORS["عادی"],
@@ -87,10 +93,21 @@ def clean_persian_text(text) -> str:
 
     replacements = {
         "مرتبشده": "مرتب‌شده",
+        "مرتب شده": "مرتب‌شده",
         "پایینتر": "پایین‌تر",
+        "پایین تر": "پایین‌تر",
         "نسبتا": "نسبتاً",
         "میشود": "می‌شود",
+        "می شود": "می‌شود",
         "شاخصهای": "شاخص‌های",
+        "شاخص های": "شاخص‌های",
+        "صرفا": "صرفاً",
+        "اطلاعرسانی": "اطلاع‌رسانی",
+        "اطلاع رسانی": "اطلاع‌رسانی",
+        "تصمیمگیری": "تصمیم‌گیری",
+        "تصمیم گیری": "تصمیم‌گیری",
+        "نمیباشد": "نمی‌باشد",
+        "نمی باشد": "نمی‌باشد",
     }
     text = str(text)
     for source, replacement in replacements.items():
@@ -176,6 +193,17 @@ def _build_styles(font_name: str, bold_font_name: str) -> dict:
             alignment=TA_RIGHT,
             textColor=colors.HexColor("#334155"),
             rightIndent=0,
+            wordWrap="RTL",
+        ),
+        "recommendation_message": ParagraphStyle(
+            "PersianRecommendationMessage",
+            fontName=font_name,
+            fontSize=8.6,
+            leading=15,
+            alignment=TA_RIGHT,
+            textColor=colors.HexColor("#334155"),
+            rightIndent=0,
+            wordWrap="RTL",
         ),
         "small": ParagraphStyle(
             "PersianSmall",
@@ -185,6 +213,7 @@ def _build_styles(font_name: str, bold_font_name: str) -> dict:
             alignment=TA_RIGHT,
             textColor=colors.HexColor("#64748b"),
             rightIndent=0,
+            wordWrap="RTL",
         ),
         "metric_label": ParagraphStyle(
             "PersianMetricLabel",
@@ -374,24 +403,32 @@ def _recommendation_box(
     font_bold: str,
 ) -> Table:
     palette = _palette_for_tone(recommendation.get("tone", "neutral"))
+    message = PDF_RECOMMENDATION_MESSAGES.get(
+        recommendation["headline"],
+        clean_persian_text(recommendation["message"]),
+    )
     details = [
-        _mixed_value("اختلاف امروز:", _format_percent(latest_record["difference_percent"])),
-        _mixed_value("میانگین اخیر:", _format_percent(latest_record["average_difference"])),
-        _mixed_value("سطح هشدار:", _format_percent(recommendation["alert_level"])),
+        ("اختلاف امروز:", _format_percent(latest_record["difference_percent"])),
+        ("میانگین اخیر:", _format_percent(latest_record["average_difference"])),
+        ("سطح هشدار:", _format_percent(recommendation["alert_level"])),
     ]
     detail_table = Table(
-        [[_paragraph(detail, styles["small"]) for detail in reversed(details)]],
-        colWidths=[55 * mm, 55 * mm, 55 * mm],
+        [
+            [_paragraph(value, styles["small"]), _fa_paragraph(label, styles["small"])]
+            for label, value in details
+        ],
+        colWidths=[28 * mm, 136 * mm],
         hAlign="RIGHT",
     )
     detail_table.setStyle(
         TableStyle(
             [
                 ("FONTNAME", (0, 0), (-1, -1), font_regular),
-                ("ALIGN", (0, 0), (-1, -1), "RIGHT"),
+                ("ALIGN", (0, 0), (0, -1), "LEFT"),
+                ("ALIGN", (1, 0), (1, -1), "RIGHT"),
                 ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
-                ("TOPPADDING", (0, 0), (-1, -1), 4),
-                ("BOTTOMPADDING", (0, 0), (-1, -1), 0),
+                ("TOPPADDING", (0, 0), (-1, -1), 3),
+                ("BOTTOMPADDING", (0, 0), (-1, -1), 3),
                 ("LEFTPADDING", (0, 0), (-1, -1), 0),
                 ("RIGHTPADDING", (0, 0), (-1, -1), 0),
             ]
@@ -406,7 +443,7 @@ def _recommendation_box(
     rows = [
         [_fa_paragraph(recommendation["title"], styles["small"])],
         [_fa_paragraph(recommendation["headline"], headline_style)],
-        [_fa_paragraph(recommendation["message"], styles["body"])],
+        [_fa_paragraph(message, styles["recommendation_message"])],
         [detail_table],
     ]
     table = Table(rows, colWidths=[168 * mm], hAlign="CENTER")
