@@ -216,6 +216,22 @@ def render_metric_section(latest, alert_level: float) -> None:
     )
 
 
+def render_records_summary(latest) -> None:
+    status = latest["status"]
+    cards = [
+        render_metric_card(
+            "آخرین وضعیت",
+            status,
+            color=get_status_color(status),
+            background=get_status_background(status),
+        ),
+        render_metric_card("آخرین اختلاف", format_percent(latest["difference_percent"])),
+        render_metric_card("آخرین نرخ بانک ملی", format_rate(latest["bank_melli_rate"])),
+        render_metric_card("آخرین نرخ بازار آزاد", format_rate(latest["market_rate"])),
+    ]
+    st.markdown(build_metric_grid(cards), unsafe_allow_html=True)
+
+
 def render_recommendation_box(recommendation: dict, latest_record) -> None:
     tone = recommendation["tone"]
     detail_items = [
@@ -239,6 +255,13 @@ def render_recommendation_box(recommendation: dict, latest_record) -> None:
     st.markdown(box_html, unsafe_allow_html=True)
 
 
+def render_footer_note() -> None:
+    st.markdown(
+        '<div class="footer-note">اطلاعات این گزارش صرفاً جهت اطلاع‌رسانی است و مبنای تصمیم‌گیری نمی‌باشد.</div>',
+        unsafe_allow_html=True,
+    )
+
+
 def apply_base_styles() -> None:
     st.markdown(
         """
@@ -252,12 +275,16 @@ def apply_base_styles() -> None:
         [data-testid="stMainBlockContainer"] {
             max-width: 1050px;
             margin: 0 auto;
-            padding-top: 1.4rem;
+            padding-top: 3.2rem;
             padding-bottom: 1.6rem;
         }
         .stMarkdown, .stDataFrame {
             direction: rtl;
             text-align: right;
+        }
+        .stTabs [data-baseweb="tab"] {
+            font-size: 0.9rem;
+            font-weight: 700;
         }
         .dashboard-container {
             max-width: 1050px;
@@ -378,6 +405,25 @@ def apply_base_styles() -> None:
             font-weight: 700;
             margin: 1.15rem 0 0.55rem;
         }
+        .records-header {
+            background: #ffffff;
+            border: 1px solid #e5e7eb;
+            border-radius: 10px;
+            margin-bottom: 0.9rem;
+            padding: 0.9rem 1rem;
+            text-align: right;
+        }
+        .records-header h2 {
+            color: #111827;
+            font-size: 1.15rem;
+            font-weight: 700;
+            margin: 0 0 0.2rem;
+        }
+        .records-header p {
+            color: #64748b;
+            font-size: 0.86rem;
+            margin: 0;
+        }
         div[data-testid="stDataFrame"] {
             border: 1px solid #e5e7eb;
             border-radius: 10px;
@@ -461,28 +507,7 @@ def style_chart(chart) -> None:
     chart.update_xaxes(tickangle=0)
 
 
-def render_dashboard(df, recent_days: int, alert_level: float) -> None:
-    latest = get_latest_record(df)
-    recent_records = get_recent_records(df, recent_days)
-    chart_df = df.copy()
-    chart_df["date"] = chart_df["date"].apply(format_jalali_date)
-    latest_date = format_jalali_date(latest["date"])
-
-    apply_base_styles()
-    render_header(latest_date, latest["status"])
-    render_metric_section(latest, alert_level)
-    recommendation = get_recommendation_text(
-        latest["status"],
-        latest["difference_percent"],
-        latest["average_difference"],
-        alert_level,
-    )
-    render_recommendation_box(recommendation, latest)
-
-    display_table = prepare_display_table(recent_records)
-    st.markdown('<div class="section-title">۷ رکورد اخیر</div>', unsafe_allow_html=True)
-    st.dataframe(style_display_table(display_table), width="stretch", hide_index=True)
-
+def render_charts_section(chart_df, alert_level: float) -> None:
     st.markdown('<div class="section-title">نمودار نرخ‌ها</div>', unsafe_allow_html=True)
     rates_chart = px.line(
         chart_df,
@@ -525,7 +550,53 @@ def render_dashboard(df, recent_days: int, alert_level: float) -> None:
     style_chart(difference_chart)
     st.plotly_chart(difference_chart, use_container_width=True)
 
+
+def render_summary_tab(latest, chart_df, alert_level: float) -> None:
+    latest_date = format_jalali_date(latest["date"])
+    render_header(latest_date, latest["status"])
+    render_metric_section(latest, alert_level)
+    recommendation = get_recommendation_text(
+        latest["status"],
+        latest["difference_percent"],
+        latest["average_difference"],
+        alert_level,
+    )
+    render_recommendation_box(recommendation, latest)
+    render_charts_section(chart_df, alert_level)
+    render_footer_note()
+
+
+def render_records_header() -> None:
     st.markdown(
-        '<div class="footer-note">اطلاعات این گزارش صرفاً جهت اطلاع‌رسانی است و مبنای تصمیم‌گیری نمی‌باشد.</div>',
+        """
+        <div class="records-header">
+            <h2>۷ رکورد اخیر</h2>
+            <p>مرتب‌شده بر اساس تاریخ گزارش برای مقایسه سریع</p>
+        </div>
+        """,
         unsafe_allow_html=True,
     )
+
+
+def render_records_tab(latest, recent_records) -> None:
+    render_records_header()
+    render_records_summary(latest)
+    display_table = prepare_display_table(recent_records)
+    st.dataframe(style_display_table(display_table), width="stretch", hide_index=True)
+    render_footer_note()
+
+
+def render_dashboard(df, recent_days: int, alert_level: float) -> None:
+    latest = get_latest_record(df)
+    recent_records = get_recent_records(df, recent_days)
+    chart_df = df.copy()
+    chart_df["date"] = chart_df["date"].apply(format_jalali_date)
+
+    apply_base_styles()
+    summary_tab, records_tab = st.tabs(["خلاصه گزارش", "۷ رکورد اخیر"])
+
+    with summary_tab:
+        render_summary_tab(latest, chart_df, alert_level)
+
+    with records_tab:
+        render_records_tab(latest, recent_records)
