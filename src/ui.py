@@ -266,7 +266,6 @@ def render_pdf_download_button(
     recommendation: dict,
     alert_level: float,
 ) -> None:
-    st.markdown('<div class="pdf-action-area"></div>', unsafe_allow_html=True)
     pdf_bytes = generate_pdf_report(
         latest_record=latest,
         recent_records=recent_records,
@@ -485,18 +484,19 @@ def apply_base_styles() -> None:
             text-align: center;
             font-size: 0.78rem;
         }
-        .pdf-action-area {
-            margin-top: 0.9rem;
-        }
         div[data-testid="stElementContainer"]:has(div[data-testid="stDownloadButton"]) {
-            width: 100%;
+            left: 24px;
+            position: fixed;
+            top: 90px;
+            width: auto;
+            z-index: 999;
         }
         div[data-testid="stDownloadButton"] {
             display: flex;
-            direction: ltr;
+            direction: rtl;
             justify-content: flex-start;
             margin-bottom: 0.4rem;
-            width: 100%;
+            width: auto;
         }
         @media (max-width: 900px) {
             .metric-grid {
@@ -612,7 +612,6 @@ def render_summary_tab(latest, recent_records, chart_df, alert_level: float) -> 
     render_recommendation_box(recommendation, latest)
     render_charts_section(chart_df, alert_level)
     render_footer_note()
-    render_pdf_download_button(latest, recent_records, recommendation, alert_level)
 
 
 def render_records_header() -> None:
@@ -640,8 +639,15 @@ def render_dashboard(df, recent_days: int, alert_level: float) -> None:
     recent_records = get_recent_records(df, recent_days)
     chart_df = df.copy()
     chart_df["date"] = chart_df["date"].apply(format_jalali_date)
+    recommendation = get_recommendation_text(
+        latest["status"],
+        latest["difference_percent"],
+        latest["average_difference"],
+        alert_level,
+    )
 
     apply_base_styles()
+    render_pdf_download_button(latest, recent_records, recommendation, alert_level)
     tab_summary, tab_records = st.tabs(["خلاصه گزارش", "۷ رکورد اخیر"])
 
     with tab_summary:
