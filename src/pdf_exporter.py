@@ -10,6 +10,7 @@ from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
 from reportlab.lib.units import mm
 from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
+from reportlab.pdfgen import canvas
 from reportlab.platypus import (
     PageBreak,
     Paragraph,
@@ -24,6 +25,8 @@ FONT_NAME = "Vazirmatn"
 BOLD_FONT_NAME = "Vazirmatn-Bold"
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 FONT_DIR = PROJECT_ROOT / "assets" / "fonts"
+VAZIRMATN_REGULAR = FONT_DIR / "Vazirmatn-Regular.ttf"
+VAZIRMATN_BOLD = FONT_DIR / "Vazirmatn-Bold.ttf"
 
 WEEKDAY_LABELS = {
     "Sunday": "یکشنبه",
@@ -54,23 +57,15 @@ def fa(text) -> str:
 
 def register_pdf_fonts() -> tuple[str, str]:
     # Vazirmatn is bundled to ensure stable Persian rendering on Streamlit Cloud.
-    regular_path = FONT_DIR / "Vazirmatn-Regular.ttf"
-    bold_path = FONT_DIR / "Vazirmatn-Bold.ttf"
+    if not VAZIRMATN_REGULAR.exists():
+        raise FileNotFoundError(f"Missing font: {VAZIRMATN_REGULAR}")
+    if not VAZIRMATN_BOLD.exists():
+        raise FileNotFoundError(f"Missing font: {VAZIRMATN_BOLD}")
 
-    if not regular_path.exists():
-        raise FileNotFoundError("Vazirmatn-Regular.ttf not found in assets/fonts")
+    pdfmetrics.registerFont(TTFont(FONT_NAME, str(VAZIRMATN_REGULAR)))
+    pdfmetrics.registerFont(TTFont(BOLD_FONT_NAME, str(VAZIRMATN_BOLD)))
 
-    registered_fonts = pdfmetrics.getRegisteredFontNames()
-
-    if FONT_NAME not in registered_fonts:
-        pdfmetrics.registerFont(TTFont(FONT_NAME, str(regular_path)))
-
-    if bold_path.exists():
-        if BOLD_FONT_NAME not in registered_fonts:
-            pdfmetrics.registerFont(TTFont(BOLD_FONT_NAME, str(bold_path)))
-        return FONT_NAME, BOLD_FONT_NAME
-
-    return FONT_NAME, FONT_NAME
+    return FONT_NAME, BOLD_FONT_NAME
 
 
 def _format_jalali_date(value) -> str:
@@ -157,7 +152,12 @@ def _build_styles(font_name: str, bold_font_name: str) -> dict:
     }
 
 
-def _metric_table(metrics: list[tuple[str, str]], styles: dict) -> Table:
+def _metric_table(
+    metrics: list[tuple[str, str]],
+    styles: dict,
+    font_regular: str,
+    font_bold: str,
+) -> Table:
     rows = [
         [_fa_paragraph(label, styles["body"]), _paragraph(value, styles["body"])]
         for label, value in metrics
@@ -166,6 +166,8 @@ def _metric_table(metrics: list[tuple[str, str]], styles: dict) -> Table:
     table.setStyle(
         TableStyle(
             [
+                ("FONTNAME", (0, 0), (-1, -1), font_regular),
+                ("FONTNAME", (0, 0), (-1, 0), font_bold),
                 ("BOX", (0, 0), (-1, -1), 0.5, colors.HexColor("#d8dee8")),
                 ("INNERGRID", (0, 0), (-1, -1), 0.25, colors.HexColor("#e5e7eb")),
                 ("BACKGROUND", (0, 0), (-1, -1), colors.white),
@@ -181,7 +183,12 @@ def _metric_table(metrics: list[tuple[str, str]], styles: dict) -> Table:
     return table
 
 
-def _recent_records_table(recent_records, styles: dict) -> Table:
+def _recent_records_table(
+    recent_records,
+    styles: dict,
+    font_regular: str,
+    font_bold: str,
+) -> Table:
     headers = [
         "روز",
         "تاریخ",
@@ -213,6 +220,8 @@ def _recent_records_table(recent_records, styles: dict) -> Table:
     table.setStyle(
         TableStyle(
             [
+                ("FONTNAME", (0, 0), (-1, -1), font_regular),
+                ("FONTNAME", (0, 0), (-1, 0), font_bold),
                 ("BOX", (0, 0), (-1, -1), 0.5, colors.HexColor("#d8dee8")),
                 ("INNERGRID", (0, 0), (-1, -1), 0.25, colors.HexColor("#e5e7eb")),
                 ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#f8fafc")),
@@ -229,6 +238,26 @@ def _recent_records_table(recent_records, styles: dict) -> Table:
     return table
 
 
+def generate_pdf_font_smoke_test() -> bytes:
+    font_regular, font_bold = register_pdf_fonts()
+    print("Using PDF fonts:", VAZIRMATN_REGULAR, VAZIRMATN_BOLD)
+
+    buffer = BytesIO()
+    c = canvas.Canvas(buffer, pagesize=A4)
+    width, height = A4
+
+    c.setFont(font_bold, 18)
+    c.drawRightString(width - 18 * mm, height - 30 * mm, fa("گزارش روزانه نرخ دلار بانک ملی"))
+
+    c.setFont(font_regular, 12)
+    c.drawRightString(width - 18 * mm, height - 45 * mm, "172,500")
+    c.drawRightString(width - 18 * mm, height - 55 * mm, "3.66%")
+
+    c.showPage()
+    c.save()
+    return buffer.getvalue()
+
+
 def generate_pdf_report(
     latest_record,
     recent_records,
@@ -236,6 +265,7 @@ def generate_pdf_report(
     alert_level,
 ) -> bytes:
     font_name, bold_font_name = register_pdf_fonts()
+    print("Using PDF fonts:", VAZIRMATN_REGULAR, VAZIRMATN_BOLD)
     styles = _build_styles(font_name, bold_font_name)
     buffer = BytesIO()
     document = SimpleDocTemplate(
@@ -263,6 +293,8 @@ def generate_pdf_report(
                 ("سطح هشدار", _format_percent(alert_level)),
             ],
             styles,
+            font_name,
+            bold_font_name,
         ),
         Spacer(1, 7 * mm),
         _fa_paragraph(recommendation["title"], styles["section"]),
@@ -276,6 +308,8 @@ def generate_pdf_report(
                 ("سطح هشدار", _format_percent(alert_level)),
             ],
             styles,
+            font_name,
+            bold_font_name,
         ),
         PageBreak(),
         _fa_paragraph("۷ رکورد اخیر", styles["title"]),
@@ -290,9 +324,11 @@ def generate_pdf_report(
                 ("آخرین نرخ بازار آزاد", _format_rate(latest_record["market_rate"])),
             ],
             styles,
+            font_name,
+            bold_font_name,
         ),
         Spacer(1, 7 * mm),
-        _recent_records_table(recent_records, styles),
+        _recent_records_table(recent_records, styles, font_name, bold_font_name),
     ]
 
     document.build(story)
