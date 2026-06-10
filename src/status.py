@@ -1,16 +1,12 @@
 import pandas as pd
 
-from src.calculator import get_recent_records
-
 
 def determine_status(
     difference_percent: float,
-    average_difference: float,
-    alert_level: float,
 ) -> str:
-    if difference_percent <= average_difference:
+    if difference_percent < 2.5:
         return "جذاب"
-    if difference_percent <= average_difference + 0.25:
+    if difference_percent <= 4.0:
         return "عادی"
     return "غیرجذاب"
 
@@ -27,7 +23,7 @@ def get_recommendation_text(
         return {
             "title": title,
             "headline": "جذاب",
-            "message": "اختلاف امروز پایین‌تر یا نزدیک به میانگین اخیر است؛ بنابراین فروش ارز به بانک ملی از نظر نرخ، نسبتاً جذاب ارزیابی می‌شود.",
+            "message": "امروز زمان مناسبی برای فروش ارز به بانک ملی است؛ اختلاف نرخ بانک ملی با بازار آزاد در سطح پایینی قرار دارد.",
             "tone": "positive",
             "alert_level": alert_level,
         }
@@ -36,7 +32,7 @@ def get_recommendation_text(
         return {
             "title": title,
             "headline": "عادی",
-            "message": "اختلاف امروز در محدوده قابل‌قبول قرار دارد، اما مزیت نرخ بانک ملی نسبت به روزهای بهتر اخیر چندان برجسته نیست.",
+            "message": "امروز شرایط فروش ارز به بانک ملی در محدوده عادی قرار دارد؛ اختلاف نرخ با بازار آزاد قابل‌قبول است، اما مزیت خیلی بالایی مشاهده نمی‌شود.",
             "tone": "neutral",
             "alert_level": alert_level,
         }
@@ -44,7 +40,7 @@ def get_recommendation_text(
     return {
         "title": title,
         "headline": "غیرجذاب",
-        "message": "امروز زمان مناسبی برای فروش ارز به بانک ملی نیست؛ اختلاف نرخ بانک ملی با بازار آزاد بالاتر از میانگین اخیر قرار دارد.",
+        "message": "امروز زمان خیلی مناسبی برای فروش ارز به بانک ملی نیست؛ اختلاف نرخ بانک ملی با بازار آزاد در سطح بالایی قرار دارد.",
         "tone": "negative",
         "alert_level": alert_level,
     }
@@ -57,13 +53,6 @@ def add_status_column(
 ) -> pd.DataFrame:
     df = df.copy()
 
-    average_difference = get_recent_records(df, recent_days)["difference_percent"].mean()
-    df["status"] = df["difference_percent"].apply(
-        lambda difference: determine_status(
-            difference,
-            average_difference,
-            alert_level,
-        )
-    )
+    df["status"] = df["difference_percent"].apply(determine_status)
 
     return df
