@@ -6,7 +6,7 @@ from bidi.algorithm import get_display
 from reportlab.lib import colors
 from reportlab.lib.enums import TA_CENTER, TA_RIGHT
 from reportlab.lib.pagesizes import A4
-from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
+from reportlab.lib.styles import ParagraphStyle
 from reportlab.lib.units import mm
 from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
@@ -38,6 +38,32 @@ WEEKDAY_LABELS = {
     "Saturday": "شنبه",
 }
 
+FOOTER_NOTE = "اطلاعات این گزارش صرفاً جهت اطلاع‌رسانی است و مبنای تصمیم‌گیری نمی‌باشد."
+
+STATUS_COLORS = {
+    "جذاب": {
+        "text": "#15803d",
+        "background": "#f0fdf4",
+        "border": "#86efac",
+    },
+    "عادی": {
+        "text": "#1d4ed8",
+        "background": "#eff6ff",
+        "border": "#93c5fd",
+    },
+    "غیرجذاب": {
+        "text": "#b91c1c",
+        "background": "#fef2f2",
+        "border": "#fca5a5",
+    },
+}
+
+TONE_COLORS = {
+    "positive": STATUS_COLORS["جذاب"],
+    "neutral": STATUS_COLORS["عادی"],
+    "negative": STATUS_COLORS["غیرجذاب"],
+}
+
 
 def fa(text) -> str:
     """
@@ -53,6 +79,23 @@ def fa(text) -> str:
     text = str(text)
     reshaped_text = arabic_reshaper.reshape(text)
     return get_display(reshaped_text)
+
+
+def clean_persian_text(text) -> str:
+    if text is None:
+        return ""
+
+    replacements = {
+        "مرتبشده": "مرتب‌شده",
+        "پایینتر": "پایین‌تر",
+        "نسبتا": "نسبتاً",
+        "میشود": "می‌شود",
+        "شاخصهای": "شاخص‌های",
+    }
+    text = str(text)
+    for source, replacement in replacements.items():
+        text = text.replace(source, replacement)
+    return text
 
 
 def register_pdf_fonts() -> tuple[str, str]:
@@ -88,99 +131,307 @@ def _paragraph(text: str, style: ParagraphStyle) -> Paragraph:
     return Paragraph(str(text), style)
 
 
-def _fa_paragraph(text: str, style: ParagraphStyle) -> Paragraph:
-    return _paragraph(fa(text), style)
+def _fa_paragraph(text, style: ParagraphStyle) -> Paragraph:
+    return _paragraph(fa(clean_persian_text(text)), style)
 
 
 def _mixed_value(label: str, value: str) -> str:
-    return f"{fa(label)} {value}"
+    return f"{fa(clean_persian_text(label))} {value}"
 
 
 def _build_styles(font_name: str, bold_font_name: str) -> dict:
-    base_styles = getSampleStyleSheet()
-    return {
+    styles = {
         "title": ParagraphStyle(
             "PersianTitle",
-            parent=base_styles["Title"],
             fontName=bold_font_name,
-            fontSize=18,
-            leading=28,
-            alignment=TA_CENTER,
+            fontSize=20,
+            leading=30,
+            alignment=TA_RIGHT,
             textColor=colors.HexColor("#111827"),
-            spaceAfter=8,
+            rightIndent=0,
         ),
         "subtitle": ParagraphStyle(
             "PersianSubtitle",
-            parent=base_styles["Normal"],
             fontName=font_name,
-            fontSize=11,
+            fontSize=10.5,
             leading=18,
             alignment=TA_RIGHT,
             textColor=colors.HexColor("#475569"),
-            spaceAfter=8,
+            rightIndent=0,
         ),
         "section": ParagraphStyle(
             "PersianSection",
-            parent=base_styles["Heading2"],
             fontName=bold_font_name,
             fontSize=13,
             leading=21,
             alignment=TA_RIGHT,
             textColor=colors.HexColor("#111827"),
-            spaceBefore=8,
-            spaceAfter=6,
+            rightIndent=0,
         ),
         "body": ParagraphStyle(
             "PersianBody",
-            parent=base_styles["Normal"],
             fontName=font_name,
             fontSize=10,
             leading=17,
             alignment=TA_RIGHT,
             textColor=colors.HexColor("#334155"),
+            rightIndent=0,
+        ),
+        "small": ParagraphStyle(
+            "PersianSmall",
+            fontName=font_name,
+            fontSize=8.5,
+            leading=14,
+            alignment=TA_RIGHT,
+            textColor=colors.HexColor("#64748b"),
+            rightIndent=0,
+        ),
+        "metric_label": ParagraphStyle(
+            "PersianMetricLabel",
+            fontName=font_name,
+            fontSize=8.6,
+            leading=13,
+            alignment=TA_RIGHT,
+            textColor=colors.HexColor("#64748b"),
+            rightIndent=0,
+        ),
+        "metric_value": ParagraphStyle(
+            "PersianMetricValue",
+            fontName=bold_font_name,
+            fontSize=11.5,
+            leading=16,
+            alignment=TA_RIGHT,
+            textColor=colors.HexColor("#111827"),
+            rightIndent=0,
         ),
         "headline": ParagraphStyle(
             "PersianHeadline",
-            parent=base_styles["Heading1"],
             fontName=bold_font_name,
-            fontSize=17,
-            leading=25,
+            fontSize=22,
+            leading=30,
             alignment=TA_RIGHT,
             textColor=colors.HexColor("#111827"),
-            spaceAfter=4,
+            rightIndent=0,
+        ),
+        "footer": ParagraphStyle(
+            "PersianFooter",
+            fontName=font_name,
+            fontSize=8,
+            leading=12,
+            alignment=TA_CENTER,
+            textColor=colors.HexColor("#94a3b8"),
         ),
     }
+    for status, palette in STATUS_COLORS.items():
+        styles[f"status_{status}"] = ParagraphStyle(
+            f"PersianStatus{status}",
+            parent=styles["metric_value"],
+            textColor=colors.HexColor(palette["text"]),
+        )
+    return styles
 
 
-def _metric_table(
+def _palette_for_status(status: str) -> dict:
+    return STATUS_COLORS.get(status, STATUS_COLORS["عادی"])
+
+
+def _palette_for_tone(tone: str) -> dict:
+    return TONE_COLORS.get(tone, TONE_COLORS["neutral"])
+
+
+def _value_paragraph(value, styles: dict) -> Paragraph:
+    if value in STATUS_COLORS:
+        return _fa_paragraph(value, styles[f"status_{value}"])
+    return _paragraph(value, styles["metric_value"])
+
+
+def _status_badge(status: str, styles: dict, font_regular: str, font_bold: str) -> Table:
+    palette = _palette_for_status(status)
+    table = Table(
+        [[_fa_paragraph(status, styles[f"status_{status}"])]],
+        colWidths=[28 * mm],
+        hAlign="LEFT",
+    )
+    table.setStyle(
+        TableStyle(
+            [
+                ("FONTNAME", (0, 0), (-1, -1), font_bold),
+                ("BACKGROUND", (0, 0), (-1, -1), colors.HexColor(palette["background"])),
+                ("BOX", (0, 0), (-1, -1), 0.7, colors.HexColor(palette["border"])),
+                ("ALIGN", (0, 0), (-1, -1), "CENTER"),
+                ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+                ("TOPPADDING", (0, 0), (-1, -1), 5),
+                ("BOTTOMPADDING", (0, 0), (-1, -1), 5),
+                ("LEFTPADDING", (0, 0), (-1, -1), 8),
+                ("RIGHTPADDING", (0, 0), (-1, -1), 8),
+            ]
+        )
+    )
+    return table
+
+
+def _report_header(
+    latest_record,
+    styles: dict,
+    font_regular: str,
+    font_bold: str,
+) -> Table:
+    title_stack = [
+        _fa_paragraph("گزارش روزانه نرخ دلار بانک ملی", styles["title"]),
+        _fa_paragraph("وضعیت نرخ بانک ملی نسبت به نرخ بازار آزاد", styles["subtitle"]),
+        _paragraph(_mixed_value("امروز:", _format_jalali_date(latest_record["date"])), styles["subtitle"]),
+    ]
+    table = Table(
+        [[_status_badge(latest_record["status"], styles, font_regular, font_bold), title_stack]],
+        colWidths=[36 * mm, 132 * mm],
+        hAlign="CENTER",
+    )
+    table.setStyle(
+        TableStyle(
+            [
+                ("FONTNAME", (0, 0), (-1, -1), font_regular),
+                ("BACKGROUND", (0, 0), (-1, -1), colors.HexColor("#f8fafc")),
+                ("BOX", (0, 0), (-1, -1), 0.7, colors.HexColor("#e2e8f0")),
+                ("VALIGN", (0, 0), (-1, -1), "TOP"),
+                ("ALIGN", (0, 0), (0, 0), "LEFT"),
+                ("ALIGN", (1, 0), (1, 0), "RIGHT"),
+                ("TOPPADDING", (0, 0), (-1, -1), 10),
+                ("BOTTOMPADDING", (0, 0), (-1, -1), 10),
+                ("LEFTPADDING", (0, 0), (-1, -1), 10),
+                ("RIGHTPADDING", (0, 0), (-1, -1), 10),
+            ]
+        )
+    )
+    return table
+
+
+def _section_title(title: str, styles: dict) -> Paragraph:
+    return _fa_paragraph(title, styles["section"])
+
+
+def _metric_card(label: str, value: str, styles: dict, font_regular: str, font_bold: str) -> Table:
+    table = Table(
+        [[_value_paragraph(value, styles), _fa_paragraph(label, styles["metric_label"])]],
+        colWidths=[35 * mm, 48 * mm],
+    )
+    table.setStyle(
+        TableStyle(
+            [
+                ("FONTNAME", (0, 0), (-1, -1), font_regular),
+                ("FONTNAME", (0, 0), (0, 0), font_bold),
+                ("BACKGROUND", (0, 0), (-1, -1), colors.HexColor("#f8fafc")),
+                ("BOX", (0, 0), (-1, -1), 0.5, colors.HexColor("#e2e8f0")),
+                ("ALIGN", (0, 0), (0, 0), "LEFT"),
+                ("ALIGN", (1, 0), (1, 0), "RIGHT"),
+                ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+                ("TOPPADDING", (0, 0), (-1, -1), 8),
+                ("BOTTOMPADDING", (0, 0), (-1, -1), 8),
+                ("LEFTPADDING", (0, 0), (-1, -1), 8),
+                ("RIGHTPADDING", (0, 0), (-1, -1), 8),
+            ]
+        )
+    )
+    return table
+
+
+def _metric_grid(
     metrics: list[tuple[str, str]],
     styles: dict,
     font_regular: str,
     font_bold: str,
 ) -> Table:
-    rows = [
-        [_fa_paragraph(label, styles["body"]), _paragraph(value, styles["body"])]
-        for label, value in metrics
-    ]
-    table = Table(rows, colWidths=[82 * mm, 58 * mm], hAlign="RIGHT")
+    rows = []
+    for index in range(0, len(metrics), 2):
+        right_metric = metrics[index]
+        left_metric = metrics[index + 1] if index + 1 < len(metrics) else ("", "")
+        rows.append(
+            [
+                _metric_card(left_metric[0], left_metric[1], styles, font_regular, font_bold),
+                _metric_card(right_metric[0], right_metric[1], styles, font_regular, font_bold),
+            ]
+        )
+
+    table = Table(rows, colWidths=[85 * mm, 85 * mm], hAlign="CENTER")
     table.setStyle(
         TableStyle(
             [
-                ("FONTNAME", (0, 0), (-1, -1), font_regular),
-                ("FONTNAME", (0, 0), (-1, 0), font_bold),
-                ("BOX", (0, 0), (-1, -1), 0.5, colors.HexColor("#d8dee8")),
-                ("INNERGRID", (0, 0), (-1, -1), 0.25, colors.HexColor("#e5e7eb")),
-                ("BACKGROUND", (0, 0), (-1, -1), colors.white),
-                ("ALIGN", (0, 0), (-1, -1), "RIGHT"),
                 ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
-                ("RIGHTPADDING", (0, 0), (-1, -1), 8),
-                ("LEFTPADDING", (0, 0), (-1, -1), 8),
-                ("TOPPADDING", (0, 0), (-1, -1), 7),
-                ("BOTTOMPADDING", (0, 0), (-1, -1), 7),
+                ("LEFTPADDING", (0, 0), (-1, -1), 2),
+                ("RIGHTPADDING", (0, 0), (-1, -1), 2),
+                ("TOPPADDING", (0, 0), (-1, -1), 3),
+                ("BOTTOMPADDING", (0, 0), (-1, -1), 3),
             ]
         )
     )
     return table
+
+
+def _recommendation_box(
+    latest_record,
+    recommendation,
+    styles: dict,
+    font_regular: str,
+    font_bold: str,
+) -> Table:
+    palette = _palette_for_tone(recommendation.get("tone", "neutral"))
+    details = [
+        _mixed_value("اختلاف امروز:", _format_percent(latest_record["difference_percent"])),
+        _mixed_value("میانگین اخیر:", _format_percent(latest_record["average_difference"])),
+        _mixed_value("سطح هشدار:", _format_percent(recommendation["alert_level"])),
+    ]
+    detail_table = Table(
+        [[_paragraph(detail, styles["small"]) for detail in reversed(details)]],
+        colWidths=[55 * mm, 55 * mm, 55 * mm],
+        hAlign="RIGHT",
+    )
+    detail_table.setStyle(
+        TableStyle(
+            [
+                ("FONTNAME", (0, 0), (-1, -1), font_regular),
+                ("ALIGN", (0, 0), (-1, -1), "RIGHT"),
+                ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+                ("TOPPADDING", (0, 0), (-1, -1), 4),
+                ("BOTTOMPADDING", (0, 0), (-1, -1), 0),
+                ("LEFTPADDING", (0, 0), (-1, -1), 0),
+                ("RIGHTPADDING", (0, 0), (-1, -1), 0),
+            ]
+        )
+    )
+
+    headline_style = ParagraphStyle(
+        "RecommendationHeadline",
+        parent=styles["headline"],
+        textColor=colors.HexColor(palette["text"]),
+    )
+    rows = [
+        [_fa_paragraph(recommendation["title"], styles["small"])],
+        [_fa_paragraph(recommendation["headline"], headline_style)],
+        [_fa_paragraph(recommendation["message"], styles["body"])],
+        [detail_table],
+    ]
+    table = Table(rows, colWidths=[168 * mm], hAlign="CENTER")
+    table.setStyle(
+        TableStyle(
+            [
+                ("FONTNAME", (0, 0), (-1, -1), font_regular),
+                ("FONTNAME", (0, 1), (0, 1), font_bold),
+                ("BOX", (0, 0), (-1, -1), 0.8, colors.HexColor(palette["border"])),
+                ("BACKGROUND", (0, 0), (-1, -1), colors.HexColor(palette["background"])),
+                ("ALIGN", (0, 0), (-1, -1), "RIGHT"),
+                ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+                ("RIGHTPADDING", (0, 0), (-1, -1), 12),
+                ("LEFTPADDING", (0, 0), (-1, -1), 12),
+                ("TOPPADDING", (0, 0), (-1, -1), 5),
+                ("BOTTOMPADDING", (0, 0), (-1, -1), 5),
+                ("LINEABOVE", (0, 3), (-1, 3), 0.5, colors.HexColor(palette["border"])),
+            ]
+        )
+    )
+    return table
+
+
+def _footer(styles: dict) -> Paragraph:
+    return _fa_paragraph(FOOTER_NOTE, styles["footer"])
 
 
 def _recent_records_table(
@@ -200,6 +451,7 @@ def _recent_records_table(
     rows = [[_fa_paragraph(header, styles["body"]) for header in headers]]
 
     for _, record in recent_records.iterrows():
+        status = record["status"]
         rows.append(
             [
                 _fa_paragraph(WEEKDAY_LABELS.get(record["day"], record["day"]), styles["body"]),
@@ -207,7 +459,7 @@ def _recent_records_table(
                 _paragraph(_format_rate(record["bank_melli_rate"]), styles["body"]),
                 _paragraph(_format_rate(record["market_rate"]), styles["body"]),
                 _paragraph(_format_percent(record["difference_percent"]), styles["body"]),
-                _fa_paragraph(record["status"], styles["body"]),
+                _fa_paragraph(status, styles[f"status_{status}"]),
             ]
         )
 
@@ -217,23 +469,24 @@ def _recent_records_table(
         repeatRows=1,
         hAlign="CENTER",
     )
+    latest_row = len(rows) - 1
+    table_styles = [
+        ("FONTNAME", (0, 0), (-1, -1), font_regular),
+        ("FONTNAME", (0, 0), (-1, 0), font_bold),
+        ("BOX", (0, 0), (-1, -1), 0.5, colors.HexColor("#d8dee8")),
+        ("INNERGRID", (0, 0), (-1, -1), 0.25, colors.HexColor("#e5e7eb")),
+        ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#f1f5f9")),
+        ("BACKGROUND", (0, latest_row), (-1, latest_row), colors.HexColor("#f8fafc")),
+        ("ALIGN", (0, 0), (-1, -1), "RIGHT"),
+        ("ALIGN", (1, 1), (4, -1), "CENTER"),
+        ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+        ("RIGHTPADDING", (0, 0), (-1, -1), 5),
+        ("LEFTPADDING", (0, 0), (-1, -1), 5),
+        ("TOPPADDING", (0, 0), (-1, -1), 5),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 5),
+    ]
     table.setStyle(
-        TableStyle(
-            [
-                ("FONTNAME", (0, 0), (-1, -1), font_regular),
-                ("FONTNAME", (0, 0), (-1, 0), font_bold),
-                ("BOX", (0, 0), (-1, -1), 0.5, colors.HexColor("#d8dee8")),
-                ("INNERGRID", (0, 0), (-1, -1), 0.25, colors.HexColor("#e5e7eb")),
-                ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#f8fafc")),
-                ("BACKGROUND", (0, -1), (-1, -1), colors.HexColor("#f8fafc")),
-                ("ALIGN", (0, 0), (-1, -1), "RIGHT"),
-                ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
-                ("RIGHTPADDING", (0, 0), (-1, -1), 5),
-                ("LEFTPADDING", (0, 0), (-1, -1), 5),
-                ("TOPPADDING", (0, 0), (-1, -1), 5),
-                ("BOTTOMPADDING", (0, 0), (-1, -1), 5),
-            ]
-        )
+        TableStyle(table_styles)
     )
     return table
 
@@ -265,7 +518,6 @@ def generate_pdf_report(
     alert_level,
 ) -> bytes:
     font_name, bold_font_name = register_pdf_fonts()
-    print("Using PDF fonts:", VAZIRMATN_REGULAR, VAZIRMATN_BOLD)
     styles = _build_styles(font_name, bold_font_name)
     buffer = BytesIO()
     document = SimpleDocTemplate(
@@ -278,57 +530,42 @@ def generate_pdf_report(
         title=f"Bank Melli Report {_format_filename_date(latest_record['date'])}",
     )
 
+    key_metrics = [
+        ("نرخ امروز بانک ملی", _format_rate(latest_record["bank_melli_rate"])),
+        ("نرخ امروز بازار آزاد", _format_rate(latest_record["market_rate"])),
+        ("اختلاف امروز", _format_percent(latest_record["difference_percent"])),
+        ("وضعیت امروز", latest_record["status"]),
+        ("میانگین اختلاف ۷ رکورد اخیر", _format_percent(latest_record["average_difference"])),
+        ("سطح هشدار", _format_percent(alert_level)),
+    ]
+    latest_metrics = [
+        ("آخرین وضعیت", latest_record["status"]),
+        ("آخرین اختلاف", _format_percent(latest_record["difference_percent"])),
+        ("آخرین نرخ بانک ملی", _format_rate(latest_record["bank_melli_rate"])),
+        ("آخرین نرخ بازار آزاد", _format_rate(latest_record["market_rate"])),
+    ]
+
     story = [
-        _fa_paragraph("گزارش روزانه نرخ دلار بانک ملی", styles["title"]),
-        _paragraph(_mixed_value("امروز:", _format_jalali_date(latest_record["date"])), styles["subtitle"]),
-        Spacer(1, 5 * mm),
-        _fa_paragraph("شاخص‌های کلیدی", styles["section"]),
-        _metric_table(
-            [
-                ("نرخ امروز بانک ملی", _format_rate(latest_record["bank_melli_rate"])),
-                ("نرخ امروز بازار آزاد", _format_rate(latest_record["market_rate"])),
-                ("اختلاف امروز", _format_percent(latest_record["difference_percent"])),
-                ("وضعیت امروز", fa(latest_record["status"])),
-                ("میانگین اختلاف ۷ رکورد اخیر", _format_percent(latest_record["average_difference"])),
-                ("سطح هشدار", _format_percent(alert_level)),
-            ],
-            styles,
-            font_name,
-            bold_font_name,
-        ),
-        Spacer(1, 7 * mm),
-        _fa_paragraph(recommendation["title"], styles["section"]),
-        _fa_paragraph(recommendation["headline"], styles["headline"]),
-        _fa_paragraph(recommendation["message"], styles["body"]),
-        Spacer(1, 4 * mm),
-        _metric_table(
-            [
-                ("اختلاف امروز", _format_percent(latest_record["difference_percent"])),
-                ("میانگین اخیر", _format_percent(latest_record["average_difference"])),
-                ("سطح هشدار", _format_percent(alert_level)),
-            ],
-            styles,
-            font_name,
-            bold_font_name,
-        ),
+        _report_header(latest_record, styles, font_name, bold_font_name),
+        Spacer(1, 8 * mm),
+        _section_title("شاخص‌های کلیدی", styles),
+        Spacer(1, 2 * mm),
+        _metric_grid(key_metrics, styles, font_name, bold_font_name),
+        Spacer(1, 8 * mm),
+        _recommendation_box(latest_record, recommendation, styles, font_name, bold_font_name),
+        Spacer(1, 26 * mm),
+        _footer(styles),
         PageBreak(),
         _fa_paragraph("۷ رکورد اخیر", styles["title"]),
         _fa_paragraph("مرتب‌شده بر اساس تاریخ گزارش برای مقایسه سریع", styles["subtitle"]),
-        Spacer(1, 5 * mm),
-        _fa_paragraph("خلاصه آخرین وضعیت", styles["section"]),
-        _metric_table(
-            [
-                ("آخرین وضعیت", fa(latest_record["status"])),
-                ("آخرین اختلاف", _format_percent(latest_record["difference_percent"])),
-                ("آخرین نرخ بانک ملی", _format_rate(latest_record["bank_melli_rate"])),
-                ("آخرین نرخ بازار آزاد", _format_rate(latest_record["market_rate"])),
-            ],
-            styles,
-            font_name,
-            bold_font_name,
-        ),
-        Spacer(1, 7 * mm),
+        Spacer(1, 8 * mm),
+        _section_title("خلاصه آخرین وضعیت", styles),
+        Spacer(1, 2 * mm),
+        _metric_grid(latest_metrics, styles, font_name, bold_font_name),
+        Spacer(1, 8 * mm),
         _recent_records_table(recent_records, styles, font_name, bold_font_name),
+        Spacer(1, 12 * mm),
+        _footer(styles),
     ]
 
     document.build(story)
