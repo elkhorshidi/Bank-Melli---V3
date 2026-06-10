@@ -266,6 +266,7 @@ def render_pdf_download_button(
     recommendation: dict,
     alert_level: float,
 ) -> None:
+    st.markdown('<div class="pdf-action-area"></div>', unsafe_allow_html=True)
     pdf_bytes = generate_pdf_report(
         latest_record=latest,
         recent_records=recent_records,
@@ -484,6 +485,19 @@ def apply_base_styles() -> None:
             text-align: center;
             font-size: 0.78rem;
         }
+        .pdf-action-area {
+            margin-top: 0.9rem;
+        }
+        div[data-testid="stElementContainer"]:has(div[data-testid="stDownloadButton"]) {
+            width: 100%;
+        }
+        div[data-testid="stDownloadButton"] {
+            display: flex;
+            direction: ltr;
+            justify-content: flex-start;
+            margin-bottom: 0.4rem;
+            width: 100%;
+        }
         @media (max-width: 900px) {
             .metric-grid {
                 grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -594,11 +608,11 @@ def render_summary_tab(latest, recent_records, chart_df, alert_level: float) -> 
         latest["average_difference"],
         alert_level,
     )
-    render_pdf_download_button(latest, recent_records, recommendation, alert_level)
     render_metric_section(latest, alert_level)
     render_recommendation_box(recommendation, latest)
     render_charts_section(chart_df, alert_level)
     render_footer_note()
+    render_pdf_download_button(latest, recent_records, recommendation, alert_level)
 
 
 def render_records_header() -> None:
