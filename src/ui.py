@@ -282,7 +282,10 @@ def render_pdf_download_button(
 
 def render_footer_note() -> None:
     st.markdown(
-        '<div class="footer-note">اطلاعات این گزارش صرفاً جهت اطلاع‌رسانی است و مبنای تصمیم‌گیری نمی‌باشد.</div>',
+        (
+            '<div class="footer-note">اطلاعات این گزارش صر'
+            'فاً جهت اطلاع‌رسانی است و مبنای تصمیم‌گیری نمی‌باشد.</div>'
+        ),
         unsafe_allow_html=True,
     )
 
