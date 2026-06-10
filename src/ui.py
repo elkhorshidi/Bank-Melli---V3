@@ -2,6 +2,7 @@ import plotly.express as px
 import streamlit as st
 
 from src.calculator import get_latest_record, get_recent_records
+from src.pdf_exporter import generate_pdf_report
 from src.status import get_recommendation_text
 
 
@@ -55,6 +56,10 @@ def format_percent(value) -> str:
 
 def format_percent_ltr(value) -> str:
     return f'<span dir="ltr">{format_percent(value)}</span>'
+
+
+def format_pdf_filename_date(value) -> str:
+    return format_jalali_date(value).replace("/", "-")
 
 
 def get_status_color(status: str) -> str:
@@ -253,6 +258,26 @@ def render_recommendation_box(recommendation: dict, latest_record) -> None:
         ]
     )
     st.markdown(box_html, unsafe_allow_html=True)
+
+
+def render_pdf_download_button(
+    latest,
+    recent_records,
+    recommendation: dict,
+    alert_level: float,
+) -> None:
+    pdf_bytes = generate_pdf_report(
+        latest_record=latest,
+        recent_records=recent_records,
+        recommendation=recommendation,
+        alert_level=alert_level,
+    )
+    st.download_button(
+        label="دانلود گزارش PDF",
+        data=pdf_bytes,
+        file_name=f"bank_melli_report_{format_pdf_filename_date(latest['date'])}.pdf",
+        mime="application/pdf",
+    )
 
 
 def render_footer_note() -> None:
@@ -560,16 +585,17 @@ def render_charts_section(chart_df, alert_level: float) -> None:
     st.plotly_chart(difference_chart, use_container_width=True)
 
 
-def render_summary_tab(latest, chart_df, alert_level: float) -> None:
+def render_summary_tab(latest, recent_records, chart_df, alert_level: float) -> None:
     latest_date = format_jalali_date(latest["date"])
     render_header(latest_date, latest["status"])
-    render_metric_section(latest, alert_level)
     recommendation = get_recommendation_text(
         latest["status"],
         latest["difference_percent"],
         latest["average_difference"],
         alert_level,
     )
+    render_pdf_download_button(latest, recent_records, recommendation, alert_level)
+    render_metric_section(latest, alert_level)
     render_recommendation_box(recommendation, latest)
     render_charts_section(chart_df, alert_level)
     render_footer_note()
@@ -605,7 +631,7 @@ def render_dashboard(df, recent_days: int, alert_level: float) -> None:
     tab_summary, tab_records = st.tabs(["خلاصه گزارش", "۷ رکورد اخیر"])
 
     with tab_summary:
-        render_summary_tab(latest, chart_df, alert_level)
+        render_summary_tab(latest, recent_records, chart_df, alert_level)
 
     with tab_records:
         render_records_tab(latest, recent_records)
