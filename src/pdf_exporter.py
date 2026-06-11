@@ -21,6 +21,8 @@ from reportlab.platypus import (
     TableStyle,
 )
 
+from src.status import determine_status
+
 
 FONT_NAME = "Vazirmatn"
 BOLD_FONT_NAME = "Vazirmatn-Bold"
@@ -60,12 +62,6 @@ STATUS_COLORS = {
         "background": "#fef2f2",
         "border": "#fca5a5",
     },
-}
-
-PDF_RECOMMENDATION_MESSAGES = {
-    "جذاب": "امروز زمان مناسبی برای فروش ارز به بانک ملی است؛ اختلاف نرخ بانک ملی با بازار آزاد در سطح پایینی قرار دارد.",
-    "عادی": "امروز شرایط فروش ارز به بانک ملی در محدوده عادی قرار دارد؛ اختلاف نرخ با بازار آزاد قابل‌قبول است، اما مزیت خیلی بالایی مشاهده نمی‌شود.",
-    "غیرجذاب": "امروز زمان خیلی مناسبی برای فروش ارز به بانک ملی نیست؛ اختلاف نرخ بانک ملی با بازار آزاد در سطح بالایی قرار دارد.",
 }
 
 TONE_COLORS = {
@@ -414,10 +410,7 @@ def _recommendation_box(
     font_bold: str,
 ) -> Table:
     palette = _palette_for_tone(recommendation.get("tone", "neutral"))
-    message = PDF_RECOMMENDATION_MESSAGES.get(
-        recommendation["headline"],
-        clean_persian_text(recommendation["message"]),
-    )
+    message = clean_persian_text(recommendation["message"])
     details = [
         ("اختلاف امروز:", _format_percent(latest_record["difference_percent"])),
         ("میانگین اخیر:", _format_percent(latest_record["average_difference"])),
@@ -483,11 +476,9 @@ def _footer(styles: dict) -> Paragraph:
 
 
 def _bar_color(value: float) -> colors.Color:
-    if value < 2.5:
-        return colors.HexColor("#22c55e")
-    if value <= 4.0:
-        return colors.HexColor("#3b82f6")
-    return colors.HexColor("#ef4444")
+    status = determine_status(value)
+    palette = _palette_for_status(status)
+    return colors.HexColor(palette["text"])
 
 
 def draw_difference_bar_chart(
