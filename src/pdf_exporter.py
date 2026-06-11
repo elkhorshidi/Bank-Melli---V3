@@ -500,6 +500,7 @@ def draw_difference_bar_chart(
     font_regular,
     font_bold,
 ):
+    print("Drawing difference chart with records:", len(recent_records))
     values = [float(value) for value in recent_records["difference_percent"].tolist()]
     dates = [_format_jalali_date(value) for value in recent_records["date"].tolist()]
     if not values:
@@ -704,6 +705,29 @@ def generate_pdf_report(
         ("آخرین نرخ بازار آزاد", _format_rate(latest_record["market_rate"])),
     ]
 
+    page_width, _ = A4
+    chart_x = 72
+    chart_y = 110
+    chart_width = page_width - 144
+    chart_height = 150
+
+    def draw_first_page_chart(c, _document):
+        draw_difference_bar_chart(
+            c,
+            recent_records,
+            chart_x,
+            chart_y,
+            chart_width,
+            chart_height,
+            font_name,
+            bold_font_name,
+        )
+        c.saveState()
+        c.setFont(font_name, 8)
+        c.setFillColor(colors.HexColor("#94a3b8"))
+        c.drawCentredString(page_width / 2, 78, fa(FOOTER_NOTE))
+        c.restoreState()
+
     story = [
         _report_header(latest_record, styles, font_name, bold_font_name),
         Spacer(1, 8 * mm),
@@ -712,10 +736,7 @@ def generate_pdf_report(
         _metric_grid(key_metrics, styles, font_name, bold_font_name),
         Spacer(1, 8 * mm),
         _recommendation_box(latest_record, recommendation, styles, font_name, bold_font_name),
-        Spacer(1, 6 * mm),
-        DifferenceBarChart(recent_records, 168 * mm, 52 * mm, font_name, bold_font_name),
-        Spacer(1, 9 * mm),
-        _footer(styles),
+        Spacer(1, 64 * mm),
         PageBreak(),
         _fa_paragraph("۷ رکورد اخیر", styles["title"]),
         _fa_paragraph("مرتب‌شده بر اساس تاریخ گزارش برای مقایسه سریع", styles["subtitle"]),
@@ -729,5 +750,5 @@ def generate_pdf_report(
         _footer(styles),
     ]
 
-    document.build(story)
+    document.build(story, onFirstPage=draw_first_page_chart)
     return buffer.getvalue()
