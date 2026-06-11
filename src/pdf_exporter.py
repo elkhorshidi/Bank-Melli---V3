@@ -506,7 +506,7 @@ def draw_difference_bar_chart(
     if not values:
         return
 
-    warning_level = 4.0
+    warning_level = 3.0
     y_max = max(max(values), warning_level) + 0.7
     plot_x = x + 9 * mm
     plot_y = y + 12 * mm
@@ -528,14 +528,6 @@ def draw_difference_bar_chart(
     c.line(plot_x, plot_y, plot_x + plot_width, plot_y)
 
     warning_y = plot_y + (warning_level / y_max) * plot_height
-    c.setStrokeColor(colors.HexColor("#dc2626"))
-    c.setDash(3, 2)
-    c.line(plot_x, warning_y, plot_x + plot_width, warning_y)
-    c.setDash()
-    c.setFont(font_regular, 6.5)
-    c.setFillColor(colors.HexColor("#dc2626"))
-    c.drawRightString(plot_x + plot_width, warning_y + 2.5, fa("سطح ۴٪"))
-    c.drawString(plot_x, warning_y + 2.5, "4.00%")
 
     bar_slot = plot_width / len(values)
     bar_width = min(9 * mm, bar_slot * 0.52)
@@ -553,6 +545,15 @@ def draw_difference_bar_chart(
         c.setFillColor(colors.HexColor("#334155"))
         c.drawCentredString(center_x, plot_y + bar_height + 3, _format_percent(value))
         c.drawCentredString(center_x, y + 4.2 * mm, date)
+
+    c.setStrokeColor(colors.HexColor("#dc2626"))
+    c.setDash(3, 2)
+    c.line(plot_x, warning_y, plot_x + plot_width, warning_y)
+    c.setDash()
+    c.setFont(font_regular, 6.5)
+    c.setFillColor(colors.HexColor("#dc2626"))
+    c.drawRightString(plot_x + plot_width - 5 * mm, warning_y + 4, fa("سطح ۳٪"))
+    c.drawString(plot_x, warning_y + 4, "3.00%")
 
     c.setFont(font_regular, 6.5)
     c.setFillColor(colors.HexColor("#64748b"))
