@@ -12,6 +12,7 @@ from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
 from reportlab.pdfgen import canvas
 from reportlab.platypus import (
+    Flowable,
     PageBreak,
     Paragraph,
     SimpleDocTemplate,
@@ -481,6 +482,105 @@ def _footer(styles: dict) -> Paragraph:
     return _fa_paragraph(FOOTER_NOTE, styles["footer"])
 
 
+def _bar_color(value: float) -> colors.Color:
+    if value < 2.5:
+        return colors.HexColor("#22c55e")
+    if value <= 4.0:
+        return colors.HexColor("#3b82f6")
+    return colors.HexColor("#ef4444")
+
+
+def draw_difference_bar_chart(
+    c,
+    recent_records,
+    x,
+    y,
+    width,
+    height,
+    font_regular,
+    font_bold,
+):
+    values = [float(value) for value in recent_records["difference_percent"].tolist()]
+    dates = [_format_jalali_date(value) for value in recent_records["date"].tolist()]
+    if not values:
+        return
+
+    warning_level = 4.0
+    y_max = max(max(values), warning_level) + 0.7
+    plot_x = x + 9 * mm
+    plot_y = y + 12 * mm
+    plot_width = width - 18 * mm
+    plot_height = height - 26 * mm
+
+    c.saveState()
+    c.setFillColor(colors.white)
+    c.setStrokeColor(colors.HexColor("#e2e8f0"))
+    c.setLineWidth(0.7)
+    c.rect(x, y, width, height, stroke=1, fill=1)
+
+    c.setFont(font_bold, 9)
+    c.setFillColor(colors.HexColor("#111827"))
+    c.drawRightString(x + width - 7 * mm, y + height - 7 * mm, fa("روند اختلاف درصدی ۷ رکورد اخیر"))
+
+    c.setStrokeColor(colors.HexColor("#e5e7eb"))
+    c.setLineWidth(0.5)
+    c.line(plot_x, plot_y, plot_x + plot_width, plot_y)
+
+    warning_y = plot_y + (warning_level / y_max) * plot_height
+    c.setStrokeColor(colors.HexColor("#dc2626"))
+    c.setDash(3, 2)
+    c.line(plot_x, warning_y, plot_x + plot_width, warning_y)
+    c.setDash()
+    c.setFont(font_regular, 6.5)
+    c.setFillColor(colors.HexColor("#dc2626"))
+    c.drawRightString(plot_x + plot_width, warning_y + 2.5, fa("سطح ۴٪"))
+    c.drawString(plot_x, warning_y + 2.5, "4.00%")
+
+    bar_slot = plot_width / len(values)
+    bar_width = min(9 * mm, bar_slot * 0.52)
+    for index, (date, value) in enumerate(zip(dates, values)):
+        center_x = plot_x + bar_slot * index + bar_slot / 2
+        bar_height = max(1.2, (value / y_max) * plot_height)
+        bar_x = center_x - bar_width / 2
+        color = _bar_color(value)
+
+        c.setFillColor(color)
+        c.setStrokeColor(color)
+        c.rect(bar_x, plot_y, bar_width, bar_height, stroke=0, fill=1)
+
+        c.setFont(font_regular, 6.2)
+        c.setFillColor(colors.HexColor("#334155"))
+        c.drawCentredString(center_x, plot_y + bar_height + 3, _format_percent(value))
+        c.drawCentredString(center_x, y + 4.2 * mm, date)
+
+    c.setFont(font_regular, 6.5)
+    c.setFillColor(colors.HexColor("#64748b"))
+    c.drawRightString(plot_x + plot_width, plot_y - 3.5 * mm, fa("تاریخ"))
+    c.restoreState()
+
+
+class DifferenceBarChart(Flowable):
+    def __init__(self, recent_records, width, height, font_regular, font_bold):
+        super().__init__()
+        self.recent_records = recent_records
+        self.width = width
+        self.height = height
+        self.font_regular = font_regular
+        self.font_bold = font_bold
+
+    def draw(self):
+        draw_difference_bar_chart(
+            self.canv,
+            self.recent_records,
+            0,
+            0,
+            self.width,
+            self.height,
+            self.font_regular,
+            self.font_bold,
+        )
+
+
 def _recent_records_table(
     recent_records,
     styles: dict,
@@ -612,7 +712,9 @@ def generate_pdf_report(
         _metric_grid(key_metrics, styles, font_name, bold_font_name),
         Spacer(1, 8 * mm),
         _recommendation_box(latest_record, recommendation, styles, font_name, bold_font_name),
-        Spacer(1, 26 * mm),
+        Spacer(1, 6 * mm),
+        DifferenceBarChart(recent_records, 168 * mm, 52 * mm, font_name, bold_font_name),
+        Spacer(1, 9 * mm),
         _footer(styles),
         PageBreak(),
         _fa_paragraph("۷ رکورد اخیر", styles["title"]),
