@@ -4,9 +4,9 @@ import pandas as pd
 def determine_status(
     difference_percent: float,
 ) -> str:
-    if difference_percent < 2.5:
+    if difference_percent < 3.0:
         return "جذاب"
-    if difference_percent <= 4.0:
+    if difference_percent < 4.0:
         return "عادی"
     return "غیرجذاب"
 
