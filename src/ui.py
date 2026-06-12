@@ -1,3 +1,7 @@
+import base64
+import html
+from pathlib import Path
+
 import plotly.express as px
 import streamlit as st
 
@@ -5,6 +9,11 @@ from src.calculator import get_latest_record, get_recent_records
 from src.pdf_exporter import generate_pdf_report
 from src.status import get_recommendation_text
 
+
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
+FONT_DIR = PROJECT_ROOT / "assets" / "fonts"
+VAZIRMATN_REGULAR = FONT_DIR / "Vazirmatn-Regular.ttf"
+VAZIRMATN_BOLD = FONT_DIR / "Vazirmatn-Bold.ttf"
 
 WEEKDAY_LABELS = {
     "Sunday": "یکشنبه",
@@ -32,7 +41,6 @@ TABLE_COLUMN_ORDER = [
     "نرخ بانک ملی",
     "نرخ بازار",
     "اختلاف درصدی",
-    "میانگین اختلاف ۷ رکورد اخیر",
     "وضعیت",
 ]
 
@@ -60,6 +68,14 @@ def format_percent_ltr(value) -> str:
 
 def format_pdf_filename_date(value) -> str:
     return format_jalali_date(value).replace("/", "-")
+
+
+def load_font_base64(font_path: Path) -> str:
+    return base64.b64encode(font_path.read_bytes()).decode("utf-8")
+
+
+def escape_html(value) -> str:
+    return html.escape(str(value), quote=True)
 
 
 def get_status_color(status: str) -> str:
@@ -167,6 +183,51 @@ def style_display_table(display_df):
             ]
         )
     )
+
+
+def build_recent_records_table_html(display_df) -> str:
+    header_cells = "".join(
+        f'<th class="{"numeric-column" if column != "روز" and column != "وضعیت" else ""}">{escape_html(column)}</th>'
+        for column in TABLE_COLUMN_ORDER
+    )
+    rows = []
+
+    for index, row in display_df.iterrows():
+        row_class = "latest-row" if index == display_df.index[-1] else ""
+        cells = []
+        for column in TABLE_COLUMN_ORDER:
+            value = row[column]
+            if column == "وضعیت":
+                status_class = {
+                    "جذاب": "status-positive",
+                    "عادی": "status-neutral",
+                    "غیرجذاب": "status-negative",
+                }.get(value, "")
+                cells.append(
+                    f'<td class="status-cell {status_class}">{escape_html(value)}</td>'
+                )
+            elif column in ["تاریخ", "نرخ بانک ملی", "نرخ بازار", "اختلاف درصدی"]:
+                cells.append(f'<td class="numeric-column">{escape_html(value)}</td>')
+            else:
+                cells.append(f"<td>{escape_html(value)}</td>")
+
+        rows.append(f'<tr class="{row_class}">{"".join(cells)}</tr>')
+
+    return "".join(
+        [
+            '<div class="records-table-wrap">',
+            '<table class="records-table" dir="rtl">',
+            f"<thead><tr>{header_cells}</tr></thead>",
+            f"<tbody>{''.join(rows)}</tbody>",
+            "</table>",
+            "</div>",
+        ]
+    )
+
+
+def render_recent_records_table(recent_records) -> None:
+    display_table = prepare_display_table(recent_records)
+    st.markdown(build_recent_records_table_html(display_table), unsafe_allow_html=True)
 
 
 def render_metric_card(
@@ -291,9 +352,40 @@ def render_footer_note() -> None:
 
 
 def apply_base_styles() -> None:
+    regular_font = load_font_base64(VAZIRMATN_REGULAR)
+    bold_font = load_font_base64(VAZIRMATN_BOLD)
+    font_css = f"""
+        @font-face {{
+            font-family: 'Vazirmatn';
+            src: url(data:font/truetype;charset=utf-8;base64,{regular_font}) format('truetype');
+            font-weight: 400;
+            font-style: normal;
+            font-display: swap;
+        }}
+        @font-face {{
+            font-family: 'Vazirmatn';
+            src: url(data:font/truetype;charset=utf-8;base64,{bold_font}) format('truetype');
+            font-weight: 700;
+            font-style: normal;
+            font-display: swap;
+        }}
+    """
     st.markdown(
         """
         <style>
+        """
+        + font_css
+        + """
+        html,
+        body,
+        [class*="css"],
+        .stApp,
+        button,
+        input,
+        textarea,
+        select {
+            font-family: 'Vazirmatn', sans-serif !important;
+        }
         .stApp {
             direction: rtl;
             text-align: right;
@@ -309,6 +401,12 @@ def apply_base_styles() -> None:
         .stMarkdown, .stDataFrame {
             direction: rtl;
             text-align: right;
+        }
+        .stMarkdown *,
+        .stTabs *,
+        div[data-testid="stDownloadButton"] *,
+        div[data-testid="stPlotlyChart"] * {
+            font-family: 'Vazirmatn', sans-serif !important;
         }
         .stTabs [data-baseweb="tab"] {
             background: #ffffff;
@@ -467,6 +565,62 @@ def apply_base_styles() -> None:
             overflow: hidden;
             background: #ffffff;
         }
+        .records-table-wrap {
+            background: #ffffff;
+            border: 1px solid #e5e7eb;
+            border-radius: 10px;
+            direction: rtl;
+            margin-top: 0.75rem;
+            overflow-x: auto;
+            width: 100%;
+        }
+        .records-table {
+            border-collapse: collapse;
+            direction: rtl;
+            font-family: 'Vazirmatn', sans-serif;
+            font-size: 0.8rem;
+            min-width: 720px;
+            table-layout: fixed;
+            text-align: right;
+            width: 100%;
+        }
+        .records-table th,
+        .records-table td {
+            border-bottom: 1px solid #e5e7eb;
+            padding: 0.48rem 0.65rem;
+            text-align: right;
+            vertical-align: middle;
+            white-space: nowrap;
+        }
+        .records-table th {
+            background: #f1f5f9;
+            color: #334155;
+            font-size: 0.76rem;
+            font-weight: 700;
+        }
+        .records-table tbody tr.latest-row {
+            background: #f8fafc;
+        }
+        .records-table tbody tr:last-child td {
+            border-bottom: 0;
+        }
+        .records-table .numeric-column {
+            direction: ltr;
+            text-align: center;
+        }
+        .records-table .status-cell {
+            font-weight: 700;
+            text-align: right;
+        }
+        .records-table .status-positive {
+            color: #15803d;
+        }
+        .records-table .status-neutral {
+            color: #1d4ed8;
+        }
+        .records-table .status-negative {
+            color: #b91c1c;
+        }
         .chart-card {
             background: #ffffff;
             border: 1px solid #e5e7eb;
@@ -550,7 +704,7 @@ def style_chart(chart) -> None:
         height=300,
         margin=dict(l=16, r=16, t=42, b=26),
         title_x=0.98,
-        font=dict(family="Arial", size=12),
+        font=dict(family="Vazirmatn", size=12),
         paper_bgcolor="#ffffff",
         plot_bgcolor="#ffffff",
         legend=dict(orientation="h", yanchor="bottom", y=1.01, xanchor="right", x=1),
@@ -632,8 +786,7 @@ def render_records_header() -> None:
 def render_records_tab(latest, recent_records) -> None:
     render_records_header()
     render_records_summary(latest)
-    display_table = prepare_display_table(recent_records)
-    st.dataframe(style_display_table(display_table), width="stretch", hide_index=True)
+    render_recent_records_table(recent_records)
     render_footer_note()
 
 
