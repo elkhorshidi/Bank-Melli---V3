@@ -41,6 +41,7 @@ TABLE_COLUMN_ORDER = [
     "نرخ بانک ملی",
     "نرخ بازار",
     "اختلاف درصدی",
+    "میانگین اختلاف ۷ رکورد اخیر",
     "وضعیت",
 ]
 
@@ -68,6 +69,10 @@ def format_percent_ltr(value) -> str:
 
 def format_pdf_filename_date(value) -> str:
     return format_jalali_date(value).replace("/", "-")
+
+
+def get_project_root() -> Path:
+    return Path(__file__).resolve().parents[1]
 
 
 def load_font_base64(font_path: Path) -> str:
@@ -206,7 +211,13 @@ def build_recent_records_table_html(display_df) -> str:
                 cells.append(
                     f'<td class="status-cell {status_class}">{escape_html(value)}</td>'
                 )
-            elif column in ["تاریخ", "نرخ بانک ملی", "نرخ بازار", "اختلاف درصدی"]:
+            elif column in [
+                "تاریخ",
+                "نرخ بانک ملی",
+                "نرخ بازار",
+                "اختلاف درصدی",
+                "میانگین اختلاف ۷ رکورد اخیر",
+            ]:
                 cells.append(f'<td class="numeric-column">{escape_html(value)}</td>')
             else:
                 cells.append(f"<td>{escape_html(value)}</td>")
@@ -216,7 +227,7 @@ def build_recent_records_table_html(display_df) -> str:
     return "".join(
         [
             '<div class="records-table-wrap">',
-            '<table class="records-table" dir="rtl">',
+            '<table class="recent-records-table" dir="rtl">',
             f"<thead><tr>{header_cells}</tr></thead>",
             f"<tbody>{''.join(rows)}</tbody>",
             "</table>",
@@ -225,7 +236,7 @@ def build_recent_records_table_html(display_df) -> str:
     )
 
 
-def render_recent_records_table(recent_records) -> None:
+def render_recent_records_html_table(recent_records) -> None:
     display_table = prepare_display_table(recent_records)
     st.markdown(build_recent_records_table_html(display_table), unsafe_allow_html=True)
 
@@ -352,8 +363,13 @@ def render_footer_note() -> None:
 
 
 def apply_base_styles() -> None:
-    regular_font = load_font_base64(VAZIRMATN_REGULAR)
-    bold_font = load_font_base64(VAZIRMATN_BOLD)
+    project_root = get_project_root()
+    regular_font_path = project_root / "assets" / "fonts" / "Vazirmatn-Regular.ttf"
+    bold_font_path = project_root / "assets" / "fonts" / "Vazirmatn-Bold.ttf"
+    print("Vazirmatn dashboard font injected from:", regular_font_path)
+
+    regular_font = load_font_base64(regular_font_path)
+    bold_font = load_font_base64(bold_font_path)
     font_css = f"""
         @font-face {{
             font-family: 'Vazirmatn';
@@ -378,12 +394,20 @@ def apply_base_styles() -> None:
         + """
         html,
         body,
-        [class*="css"],
         .stApp,
+        [data-testid="stAppViewContainer"],
+        [data-testid="stMarkdownContainer"],
+        [class*="css"],
         button,
         input,
         textarea,
-        select {
+        select,
+        div,
+        span,
+        p,
+        table,
+        th,
+        td {
             font-family: 'Vazirmatn', sans-serif !important;
         }
         .stApp {
@@ -574,51 +598,51 @@ def apply_base_styles() -> None:
             overflow-x: auto;
             width: 100%;
         }
-        .records-table {
+        .recent-records-table {
             border-collapse: collapse;
             direction: rtl;
             font-family: 'Vazirmatn', sans-serif;
             font-size: 0.8rem;
-            min-width: 720px;
+            min-width: 860px;
             table-layout: fixed;
             text-align: right;
             width: 100%;
         }
-        .records-table th,
-        .records-table td {
+        .recent-records-table th,
+        .recent-records-table td {
             border-bottom: 1px solid #e5e7eb;
             padding: 0.48rem 0.65rem;
             text-align: right;
             vertical-align: middle;
             white-space: nowrap;
         }
-        .records-table th {
+        .recent-records-table th {
             background: #f1f5f9;
             color: #334155;
             font-size: 0.76rem;
             font-weight: 700;
         }
-        .records-table tbody tr.latest-row {
+        .recent-records-table tbody tr.latest-row {
             background: #f8fafc;
         }
-        .records-table tbody tr:last-child td {
+        .recent-records-table tbody tr:last-child td {
             border-bottom: 0;
         }
-        .records-table .numeric-column {
+        .recent-records-table .numeric-column {
             direction: ltr;
             text-align: center;
         }
-        .records-table .status-cell {
+        .recent-records-table .status-cell {
             font-weight: 700;
             text-align: right;
         }
-        .records-table .status-positive {
+        .recent-records-table .status-positive {
             color: #15803d;
         }
-        .records-table .status-neutral {
+        .recent-records-table .status-neutral {
             color: #1d4ed8;
         }
-        .records-table .status-negative {
+        .recent-records-table .status-negative {
             color: #b91c1c;
         }
         .chart-card {
@@ -786,7 +810,7 @@ def render_records_header() -> None:
 def render_records_tab(latest, recent_records) -> None:
     render_records_header()
     render_records_summary(latest)
-    render_recent_records_table(recent_records)
+    render_recent_records_html_table(recent_records)
     render_footer_note()
 
 
