@@ -85,6 +85,7 @@ def escape_html(value) -> str:
 
 def get_status_color(status: str) -> str:
     colors = {
+        "بسیار جذاب": "#166534",
         "جذاب": "#15803d",
         "عادی": "#1d4ed8",
         "غیرجذاب": "#b91c1c",
@@ -94,6 +95,7 @@ def get_status_color(status: str) -> str:
 
 def get_status_background(status: str) -> str:
     colors = {
+        "بسیار جذاب": "#dcfce7",
         "جذاب": "#f0fdf4",
         "عادی": "#eff6ff",
         "غیرجذاب": "#fef2f2",
@@ -103,6 +105,7 @@ def get_status_background(status: str) -> str:
 
 def get_status_border_color(status: str) -> str:
     colors = {
+        "بسیار جذاب": "#4ade80",
         "جذاب": "#86efac",
         "عادی": "#93c5fd",
         "غیرجذاب": "#fca5a5",
@@ -112,6 +115,7 @@ def get_status_border_color(status: str) -> str:
 
 def get_tone_color(tone: str) -> str:
     colors = {
+        "strong_positive": "#166534",
         "positive": "#15803d",
         "neutral": "#1d4ed8",
         "negative": "#b91c1c",
@@ -121,6 +125,7 @@ def get_tone_color(tone: str) -> str:
 
 def get_tone_background(tone: str) -> str:
     colors = {
+        "strong_positive": "#dcfce7",
         "positive": "#f0fdf4",
         "neutral": "#eff6ff",
         "negative": "#fef2f2",
@@ -130,6 +135,7 @@ def get_tone_background(tone: str) -> str:
 
 def get_tone_border_color(tone: str) -> str:
     colors = {
+        "strong_positive": "#4ade80",
         "positive": "#86efac",
         "neutral": "#93c5fd",
         "negative": "#fca5a5",
@@ -204,6 +210,7 @@ def build_recent_records_table_html(display_df) -> str:
             value = row[column]
             if column == "وضعیت":
                 status_class = {
+                    "بسیار جذاب": "status-strong-positive",
                     "جذاب": "status-positive",
                     "عادی": "status-neutral",
                     "غیرجذاب": "status-negative",
@@ -635,6 +642,9 @@ def apply_base_styles() -> None:
         .recent-records-table .status-cell {
             font-weight: 700;
             text-align: right;
+        }
+        .recent-records-table .status-strong-positive {
+            color: #166534;
         }
         .recent-records-table .status-positive {
             color: #15803d;

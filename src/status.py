@@ -4,7 +4,9 @@ import pandas as pd
 def determine_status(
     difference_percent: float,
 ) -> str:
-    if difference_percent < 3.0:
+    if difference_percent < 0:
+        return "بسیار جذاب"
+    if difference_percent < 2.0:
         return "جذاب"
     if difference_percent < 4.0:
         return "عادی"
@@ -18,6 +20,15 @@ def get_recommendation_text(
     alert_level: float,
 ) -> dict:
     title = "پیشنهاد امروز برای فروش ارز به بانک ملی"
+
+    if status == "بسیار جذاب":
+        return {
+            "title": title,
+            "headline": "بسیار جذاب",
+            "message": "امروز شرایط فروش ارز به بانک ملی بسیار جذاب است؛ نرخ بانک ملی بالاتر از نرخ بازار آزاد قرار دارد و اختلاف به نفع فروشنده است.",
+            "tone": "strong_positive",
+            "alert_level": alert_level,
+        }
 
     if status == "جذاب":
         return {

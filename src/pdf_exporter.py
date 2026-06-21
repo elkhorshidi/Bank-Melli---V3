@@ -47,6 +47,11 @@ FOOTER_NOTE = (
 )
 
 STATUS_COLORS = {
+    "بسیار جذاب": {
+        "text": "#166534",
+        "background": "#dcfce7",
+        "border": "#4ade80",
+    },
     "جذاب": {
         "text": "#15803d",
         "background": "#f0fdf4",
@@ -65,6 +70,7 @@ STATUS_COLORS = {
 }
 
 TONE_COLORS = {
+    "strong_positive": STATUS_COLORS["بسیار جذاب"],
     "positive": STATUS_COLORS["جذاب"],
     "neutral": STATUS_COLORS["عادی"],
     "negative": STATUS_COLORS["غیرجذاب"],
